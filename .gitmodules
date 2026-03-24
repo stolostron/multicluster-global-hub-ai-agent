@@ -23,3 +23,6 @@
 	url = https://github.com/stolostron/multicluster-global-hub-operator-catalog
 	branch = release-1.8
 
+[submodule ".claude/skills/acm-workflows"]
+	path = .claude/skills/acm-workflows
+	url = https://github.com/stolostron/acm-workflows.git
