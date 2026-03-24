@@ -1,0 +1,1 @@
+../../repos/acm-workflows/Claude/plugins/jira-tools/agents/jira-administrator.md
