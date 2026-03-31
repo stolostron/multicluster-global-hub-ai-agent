@@ -6,7 +6,7 @@ on:
 
 jobs:
   add_labels:
-    if: ${{ github.event.pull_request.user.login == 'red-hat-konflux[bot]' }}
+    if: ${{ github.event.pull_request.user.login == 'red-hat-konflux[bot]' || github.event.pull_request.user.login == 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - name: add labels

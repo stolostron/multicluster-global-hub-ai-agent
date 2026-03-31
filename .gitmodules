@@ -26,3 +26,4 @@
 [submodule "repos/acm-workflows"]
 	path = repos/acm-workflows
 	url = https://github.com/stolostron/acm-workflows.git
+	branch = main
