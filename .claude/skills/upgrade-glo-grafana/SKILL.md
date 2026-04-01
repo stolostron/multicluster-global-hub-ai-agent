@@ -1,6 +1,6 @@
 ---
 name: upgrade-glo-grafana
-description: Upgrade glo-grafana repository by syncing latest code from stolostron/grafana upstream, cherry-picking Global Hub specific commits (including the base commit), squashing into a single commit, and creating a PR. Use when upgrading Grafana version for Global Hub or syncing with upstream grafana changes.
+description: Upgrade glo-grafana repository by syncing latest code from stolostron/grafana upstream, cherry-picking Global Hub specific commits (including the keep commit), squashing into a single commit, and pushing directly to the target branch. Use when upgrading Grafana version for Global Hub or syncing with upstream grafana changes.
 ---
 
 # Upgrade glo-grafana Repository
@@ -9,9 +9,9 @@ description: Upgrade glo-grafana repository by syncing latest code from stolostr
 
 This skill upgrades the `stolostron/glo-grafana` repository by:
 1. Syncing latest code from `stolostron/grafana` upstream branch
-2. Cherry-picking Global Hub specific commits (including the base commit) on top of the synced code
+2. Cherry-picking Global Hub specific commits (including the keep commit) on top of the synced code
 3. Squashing all cherry-picked commits into a single commit: "Re-apply Global Hub specific commits on top"
-4. Creating a PR to the target release branch
+4. Backing up the existing target branch and pushing the upgraded code directly
 
 ## Workflow Instructions
 
@@ -161,57 +161,41 @@ Expected output:
 ...
 ```
 
-### Step 9: Configure Remote for Push
+### Step 9: Backup and Push to Target Branch
 
-Check if user has push access to stolostron/glo-grafana:
+Instead of creating a PR, directly update the target branch:
+
+**Step 9a: Rename existing target branch as backup**
 
 ```bash
+# Rename the existing target branch to backup
+gh api repos/stolostron/glo-grafana/git/refs/heads/{TARGET_BRANCH} \
+  --method PATCH \
+  --field sha="$(gh api repos/stolostron/glo-grafana/git/refs/heads/{TARGET_BRANCH} --jq '.object.sha')" \
+  -f ref="refs/heads/{TARGET_BRANCH}-bak" 2>/dev/null || echo "Creating backup branch"
+
+# Alternative: create backup branch from target
+gh api repos/stolostron/glo-grafana/git/refs \
+  --method POST \
+  --field ref="refs/heads/{TARGET_BRANCH}-bak" \
+  --field sha="$(gh api repos/stolostron/glo-grafana/git/refs/heads/{TARGET_BRANCH} --jq '.object.sha')"
+```
+
+**Step 9b: Push upgrade branch to target branch**
+
+```bash
+# Configure origin remote
 git remote set-url origin git@github.com:stolostron/glo-grafana.git
-git push -u origin {NEW_BRANCH}
+
+# Force push the upgrade branch to the target branch
+git push origin {NEW_BRANCH}:{TARGET_BRANCH} --force
 ```
 
-If permission denied, use user's fork:
+This will:
+1. Create `{TARGET_BRANCH}-bak` as backup of the original branch
+2. Replace `{TARGET_BRANCH}` with the upgraded code
 
-```bash
-# Get GitHub username
-gh auth status
-
-# Add user's fork as remote
-git remote add myfork git@github.com:{USERNAME}/glo-grafana.git
-git push -u myfork {NEW_BRANCH}
-```
-
-### Step 10: Create Pull Request
-
-Create a PR to the target branch:
-
-```bash
-gh pr create --repo stolostron/glo-grafana --base {TARGET_BRANCH} --head {USERNAME}:{NEW_BRANCH} --title "Upgrade glo-grafana to Grafana {GRAFANA_VERSION} (stolostron/grafana {SOURCE_BRANCH})" --body "$(cat <<'EOF'
-## Summary
-- Sync latest code from https://github.com/stolostron/grafana {SOURCE_BRANCH} branch (Grafana {GRAFANA_VERSION})
-- Re-apply Global Hub specific commits on top of the synced code
-
-## Changes
-This upgrade brings the latest Grafana improvements including:
-- All upstream Grafana improvements and bug fixes
-- CVE fixes included in stolostron/grafana {SOURCE_BRANCH}
-- Retains Global Hub specific configurations:
-  - Konflux pipelines for release-1.8
-  - Containerfile.konflux
-  - stolostron-patches for auth proxy header forwarding
-  - CVE fixes (containerd, glob, node-forge)
-
-## Test plan
-- [ ] Verify Konflux build pipeline works correctly
-- [ ] Test Grafana deployment in Global Hub environment
-- [ ] Verify datasource proxy authentication works
-
-🤖 Generated with [Claude Code](https://claude.ai/code)
-EOF
-)"
-```
-
-### Step 11: Final Summary
+### Step 10: Final Summary
 
 Display completion summary:
 
@@ -224,14 +208,14 @@ Upstream Sync:
 
 Final Commit: {COMMIT_HASH} - "Re-apply Global Hub specific commits on top"
 
-Pull Request: {PR_URL}
-Target Branch: {TARGET_BRANCH}
+Target Branch: {TARGET_BRANCH} (updated)
+Backup Branch: {TARGET_BRANCH}-bak (original state)
 
 Next Steps:
-1. Review the PR: {PR_URL}
-2. Wait for CI checks to pass
-3. Address any review comments
-4. Merge when approved
+1. Verify the {TARGET_BRANCH} branch has the correct commits
+2. Wait for Konflux build pipeline to complete
+3. Test Grafana deployment in Global Hub environment
+4. Delete {TARGET_BRANCH}-bak branch when confirmed working
 ```
 
 ## Error Handling
@@ -262,18 +246,21 @@ git checkout -b upgrade-to-grafana-{SOURCE_BRANCH} upstream/{SOURCE_BRANCH}
 ### Push Permission Denied
 
 If user cannot push to stolostron/glo-grafana:
-1. Check if user has a fork: `gh repo list {USERNAME} --json name | grep glo-grafana`
-2. If no fork exists: `gh repo fork stolostron/glo-grafana --clone=false`
-3. Add fork as remote and push there
+1. Verify user has write access to the repository
+2. Check SSH key is configured: `ssh -T git@github.com`
+3. Contact repository admin for push access
 
-### Need to Update PR After Fixes
+### Restore from Backup
 
-If you need to fix issues and update the PR:
+If something goes wrong and you need to restore the original branch:
 ```bash
-# Make fixes
-git add -A
-git commit --amend --no-edit
-git push myfork {NEW_BRANCH} --force
+# Force push backup branch back to target branch
+git push origin {TARGET_BRANCH}-bak:{TARGET_BRANCH} --force
+
+# Or via GitHub API
+gh api repos/stolostron/glo-grafana/git/refs/heads/{TARGET_BRANCH} \
+  --method PATCH \
+  --field sha="$(gh api repos/stolostron/glo-grafana/git/refs/heads/{TARGET_BRANCH}-bak --jq '.object.sha')"
 ```
 
 ## Prerequisites
@@ -287,7 +274,7 @@ Before starting this workflow, ensure:
 2. **Access configured**:
    - GitHub authentication via `gh auth login`
    - SSH keys configured for GitHub
-   - Fork of `stolostron/glo-grafana` (if no direct push access)
+   - Write access to `stolostron/glo-grafana` repository
 
 3. **Repository prepared**:
    - glo-grafana submodule initialized
@@ -301,7 +288,7 @@ Before starting this workflow, ensure:
 User: /upgrade-glo-grafana
 Claude: I'll help you upgrade glo-grafana. Please provide:
 1. Source branch from stolostron/grafana to sync from (e.g., release-2.17)
-2. Target branch in glo-grafana for the PR (e.g., release-1.8)
+2. Target branch in glo-grafana to update (e.g., release-1.8)
 3. Keep commit - the FIRST commit to keep (this commit and all after it will be cherry-picked)
 ```
 
