@@ -106,13 +106,11 @@ git cherry-pick {NEXT_COMMIT}
    - Accept upstream version: `git checkout --ours {file}`
    - Then `git add {file}`
 
-4. **Rename conflicts** (file renamed differently in both branches):
-   - Common for `.tekton/` files
-   - Keep BOTH sets of files:
-     - Upstream ACM files (e.g., `grafana-acm-217-*.yaml`)
-     - Global Hub files (e.g., `glo-grafana-globalhub-1-8-*.yaml`)
-   - Use `git checkout --theirs {glo-grafana-file}` to get the Global Hub version
-   - Add all: `git add .tekton/`
+4. **Rename conflicts in .tekton/** (file renamed differently in both branches):
+   - Only keep Global Hub files (e.g., `glo-grafana-globalhub-1-8-*.yaml`)
+   - Delete upstream ACM files: `git rm .tekton/grafana-acm-*.yaml`
+   - Use `git checkout --theirs .tekton/glo-grafana-*.yaml` to get the Global Hub version
+   - Add: `git add .tekton/`
 
 5. **Containerfile.konflux conflicts**:
    - Use Global Hub version: `git checkout --theirs Containerfile.konflux`
@@ -357,6 +355,6 @@ The keep commit (first Global Hub specific commit) typically includes these file
 1. **Include keep commit**: The keep commit contains critical Global Hub config - don't skip it!
 2. **Squash to single commit**: Final PR should have exactly one commit: "Re-apply Global Hub specific commits on top"
 3. **Preserve CVE fixes**: Always keep security patches (go.mod replace directives, package.json upgrades)
-4. **Keep both tekton files**: ACM and Global Hub use different Konflux pipelines - keep both
+4. **Only keep glo-grafana tekton files**: Delete `grafana-acm-*.yaml`, only keep `glo-grafana-globalhub-*.yaml`
 5. **Use correct Containerfile**: glo-grafana uses `Containerfile.konflux`, not `Containerfile.operator`
 6. **Verify YAML syntax**: After resolving tekton file conflicts, ensure no merge markers remain
