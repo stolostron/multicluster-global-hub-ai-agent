@@ -10,6 +10,10 @@ This directory contains Claude Code configuration and skills for the Multicluste
 │   └── acm-workflows/          # Git submodule linking to ACM workflows and Jira tools
 ├── settings.local.json          # Local Claude Code settings
 └── README.md                    # This file
+
+skills/                          # Top-level, tool-agnostic skill directory
+├── fix-cve-pr/                  # CVE PR fix workflow (works with Cursor and Claude Code)
+└── update-amq-kafka/            # AMQ/Kafka version update workflow
 ```
 
 ## Skills
