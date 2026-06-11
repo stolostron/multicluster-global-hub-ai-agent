@@ -1,0 +1,28 @@
+---
+description: Load credentials from cve-service config .env for external API access
+alwaysApply: true
+---
+
+# External Resource Credentials
+
+When accessing resources outside Cursor (Jira, GitHub, Jenkins, Konflux, GitLab, Slack, Gemini, etc.), load credentials from:
+
+`<workspace-root>/workflows/cve-service/config/.env`
+
+(Replace `<workspace-root>` with the absolute path to the repo root on your machine, e.g. `/home/user/multicluster-global-hub-ai-agent`.)
+
+Do not guess or ask for tokens. Source this file in shell commands or read it before API calls:
+
+```bash
+set -a
+source <workspace-root>/workflows/cve-service/config/.env
+set +a
+```
+
+Use the corresponding env vars (e.g. `JIRA_*`, `GITHUB_TOKEN`, `JENKINS_*`, `KONFLUX_TOKEN`, `GITLAB_*`, `SLACK_WEBHOOK_URL`, `GEMINI_*`).
+
+`JIRA_EMAIL` must match your Atlassian account email exactly. A typo breaks API create/comment.
+
+When creating ACM Jira issues, follow `skills/jira-create/SKILL.md` — always set **Component**, **Activity Type**, **Severity**, and **Priority**.
+
+Never print, commit, or echo secret values from this file.
