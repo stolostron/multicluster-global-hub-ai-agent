@@ -1,9 +1,57 @@
 ---
 name: agent-config
-description: Agent workflow defaults for GitHub PR work — always DCO sign-off on commits and comment on PRs after pushing updates. Use when creating or updating PRs, pushing fixes to PR branches, babysitting CI, retesting, or when the user asks about agent config or PR conventions.
+description: Agent workflow defaults for GitHub PR work and GitLab GH release pipeline handoffs — DCO sign-off, PR comments after push, merge pipeline fixes to the run branch (main) before telling the user to rerun. Use when creating or updating PRs, fixing acm-global-hub-release GitLab jobs, pushing fixes, babysitting CI, retesting, or when the user asks about agent config or PR conventions.
 ---
 
 # Agent Config
+
+## Release branch fast-forward (main → release-*)
+
+**Never commit directly to a protected release branch** (e.g. `release-5.0`) when that repo uses **main → release fast-forward** (OpenShift CI promotion / branch sync). Direct pushes break ffwd and leave the release branch ahead/behind main.
+
+### How to tell
+
+- Repo has both `main` and `release-<version>` branches
+- OpenShift CI `ci-operator/config/.../stolostron-<repo>-main.yaml` promotes to the release namespace (e.g. `5.0`)
+- User or runbook says "main ffwd to release-X"
+
+### Rules
+
+1. **All code changes go to `main` first** — via PR with DCO, normal CI.
+2. **Release branch updates via ffwd only** — after merge to `main`, CI fast-forwards `release-*`. Do not `git push origin release-*` with new commits.
+3. **If ffwd is broken** (release branch ahead/behind main): open a **merge PR** `main` → `release-*` (protected branches block force-push). Example: [compare main...release-5.0](https://github.com/stolostron/multicluster-global-hub/compare/main...release-5.0).
+4. **Release-only commits** (e.g. 5.0 CPE labels in Containerfiles) still go through a PR targeting the release branch — but avoid duplicating dependency bumps that belong on `main`.
+5. Check `workflows/cve-service/config/repo_mapping.json` → `repo_branch_policy` for ffwd per repo (`glo-grafana` has **no** ffwd — no `main` branch).
+
+### Mandatory railcheck before push
+
+**Before any `git push` to a release branch**, run the ffwd railcheck:
+
+```bash
+# From ai-agent repo root (or set FFWD_POLICY_FILE to repo_mapping.json)
+scripts/check-ffwd-push.sh --repo stolostron/multicluster-global-hub --branch release-5.0
+```
+
+- Exit **0** → proceed with push.
+- Exit **1** → **stop** — push to `dev_branch` via PR instead (see `repo_branch_policy` in `repo_mapping.json`).
+- Never use `FFWD_ALLOW_DIRECT=1` unless the user explicitly overrides.
+
+Repos with `ffwd_from_main: true` today: `stolostron/multicluster-global-hub`, `stolostron/postgres_exporter`.
+
+### Local git hook (optional)
+
+Developers can install the same check as a pre-push hook:
+
+```bash
+cd /path/to/stolostron/multicluster-global-hub
+/path/to/multicluster-global-hub-ai-agent/scripts/install-ffwd-hook.sh
+```
+
+This chains with existing hooks (e.g. release checklist `pre-push` in multicluster-global-hub).
+
+### Author identity
+
+Use the user's full name in `Signed-off-by` (e.g. `Valentina Birsan <vbirsan@redhat.com>`), not a shortened first name.
 
 ## DCO sign-off on every commit
 
@@ -131,7 +179,55 @@ When creating ACM issues via API, read and follow **`skills/jira-create/SKILL.md
 
 Set `JIRA_EMAIL` in `.env` to your Atlassian account email (e.g. `you@redhat.com`). A one-character typo breaks API create/comment.
 
+## Network / VPN errors
+
+**Flag VPN issues immediately.** If a `gh`, `curl`, or any network command fails with a connection error (e.g. `error connecting to api.github.com`, `Forbidden`, timeout), stop and tell the user right away:
+
+> "This looks like a VPN/network issue — please connect to VPN and I'll retry."
+
+Do **not** silently retry, launch long-running subagents, or wait until timing out. One failed attempt is enough to diagnose the issue.
+
+### Rules
+
+- On the first network failure, surface it to the user in plain language before doing anything else.
+- After the user confirms VPN is up, re-run the same command with `required_permissions: ["all"]` if the sandbox was also blocking it.
+- Never spend more than one attempt on a command that fails with a clear connectivity error.
+
+## Slack messages and escalations
+
+**Never draft or ask the user to post a Slack message unless the root cause is confirmed.**
+
+Slack messages to teams (CI, infra, security, QE, etc.) are hard to retract and create noise. A wrong escalation (e.g. "please rotate the token" when the token is fine) wastes other teams' time and misframes the issue.
+
+### Rules
+
+- **Verify before escalating.** Before suggesting a Slack message blaming a specific root cause (expired secret, bad token, infra issue, missing permission, etc.), confirm it programmatically first:
+  - For SonarCloud 403 / quality gate: query `sonarcloud.io/api/qualitygates/project_status` before assuming a token problem.
+  - For CI failures: read the actual log output, not just the summary status.
+  - For any "bad credential" error: attempt an authenticated API call and check the response body.
+- **Surface uncertainty to the user, not to the external team.** If the cause is unclear, tell the user "I'm not certain yet — let me check X before we escalate" rather than drafting a message based on the first visible error.
+- **Draft a Slack message only when:** the cause is confirmed, the right audience is identified, and the message accurately describes the problem with evidence (log link, API response, etc.).
+- **If the user asks you to draft a Slack message and you are not confident the framing is correct**, say so explicitly and offer to verify the root cause first.
+
+### Retrospective example (Jun 2026)
+
+A `403 Forbidden` and `jq null` in a SonarCloud post-submit log led to a Slack escalation asking the CI team to rotate `acm-sonarcloud-token`. The token was fine — the real issue was three S8545 vulnerability findings driving a Security Rating C that failed the quality gate. Querying `sonarcloud.io/api/qualitygates/project_status` upfront would have revealed the actual cause in seconds and avoided the incorrect escalation.
+
+## GitLab pipeline fixes — merge before "rerun"
+
+**Do not say a pipeline fix is ready until it is on the branch the user will run** (usually `main` on `vbirsan/acm-global-hub-release`).
+
+Side-branch-only fixes (`vbirsan`, `brew-fix-for-pipeline`, etc.) are invisible when the user reruns on `main`. Always:
+
+1. Merge/fast-forward the fix into `main`
+2. `git push pipeline main`
+3. Verify failed job `ref` + `sha` match the fix commit
+4. Tell the user the **branch name and commit SHA** when asking them to rerun
+
+Full workflow, GitLab job verification, and Jira coupling: **`skills/gitlab-gh-release-pipeline/SKILL.md`**
+
 ## Related
 
+- GitLab GH release pipeline (branch discipline, job verification): `skills/gitlab-gh-release-pipeline/SKILL.md`
 - Jira create hygiene: `skills/jira-create/SKILL.md`
 - Cursor rule: `.cursor/rules/github-pr-comment-on-update.mdc` (always applied in this repo)
