@@ -4,7 +4,8 @@ description: >-
   Global Hub GitLab release pipeline (vbirsan/acm-global-hub-release). Use when
   fixing validate-release or trigger-jenkins scripts, telling the user to rerun
   a pipeline, debugging failed GitLab jobs, or changing Jira param parsing in
-  chunlin-acm-global-hub-release. Enforces merge-to-run-branch before handoff.
+  chunlin-acm-global-hub-release. Enforces push script fixes to GitLab and
+  merge-to-run-branch before handoff.
 ---
 
 # GitLab GH Release Pipeline
@@ -13,6 +14,45 @@ Repo: `chunlin-acm-global-hub-release` (local) → `vbirsan/acm-global-hub-relea
 Default remote for pushes: `pipeline` (`git@gitlab.cee.redhat.com:vbirsan/acm-global-hub-release.git`).
 
 Users trigger pipelines from the GitLab UI **Run pipeline** dialog. The selected **branch/ref** is what CI checks out — not whatever branch you edited locally unless that ref is pushed and selected.
+
+## Rule: always push script fixes to GitLab
+
+**Whenever you update a script on the gh release project, always push the fix to https://gitlab.cee.redhat.com/vbirsan/acm-global-hub-release**
+
+Local-only edits in `chunlin-acm-global-hub-release` (or any local checkout) do **not** apply until pushed to the `pipeline` remote. A fix left uncommitted or unpushed will not run when the user executes pre-release/release scripts or GitLab CI.
+
+### Scope
+
+Any change under:
+
+- `pre-release/`
+- `release/`
+- `lib/`
+- `.gitlab-ci.yml`
+- other pipeline/runbook scripts in the release repo
+
+### Required workflow
+
+1. Edit in the local checkout (`chunlin-acm-global-hub-release` or equivalent).
+2. Commit with DCO (`git commit -s`).
+3. Push to **`pipeline`** → https://gitlab.cee.redhat.com/vbirsan/acm-global-hub-release
+4. Confirm the push: `git log -1 --oneline pipeline/main` (or the target branch).
+
+```bash
+cd /path/to/chunlin-acm-global-hub-release
+git add <changed-files>
+git commit -s -m "fix: <what and why>"
+git push pipeline main   # default; use the branch the user runs if not main
+```
+
+### Anti-pattern (repeat failure mode)
+
+| What happened | Result |
+|---------------|--------|
+| Script fixed locally, never pushed | User reruns pre-release → old script → same bug (e.g. missed `release_timestamp` in RPA bump) |
+| Agent reports "fixed" without push | User trusts the fix; manual MR/work still broken |
+
+**Do not** tell the user a script fix is done until `git push pipeline <branch>` succeeds.
 
 ## Rule: fix must be on the run branch before "rerun"
 

@@ -1,6 +1,6 @@
 ---
 name: jira-create
-description: Create or update ACM Jira issues via API with required hygiene fields (Component, Activity Type, Severity, Priority). Use when creating sub-tasks, QE tasks, linking issues, or when the user asks about Jira API tokens, ACM issue fields, or release-management component alerts.
+description: Create or update ACM Jira issues via API with required hygiene fields (Component Global Hub, Assignee, Activity Type, Severity, Priority). Use when creating sub-tasks, QE tasks, linking issues, or when the user asks about Jira API tokens, ACM issue fields, or release-management component alerts.
 ---
 
 # ACM Jira — create / update issues
@@ -25,7 +25,8 @@ Use **classic API token** (or scoped with `read:jira-work` + `write:jira-work`).
 
 | Field | API key | Default (GH / QE / release work) | Notes |
 |-------|---------|----------------------------------|-------|
-| **Component(s)** | `components` | `QE` or `Global Hub` | Required for ACM Release Management hygiene |
+| **Component(s)** | `components` | **`Global Hub`** (always) | Required for ACM Release Management hygiene — **never use `QE` or leave unset** |
+| **Assignee** | `assignee` | **`JIRA_EMAIL`** from `.env` | Initial owner is always the authenticated user (you) |
 | **Activity Type** | `customfield_10464` | `Product / Portfolio Work` | Other options: Quality / Stability / Reliability, Security & Compliance, … |
 | **Severity** | `customfield_10840` | `Important` | Other options: Critical, Moderate, Low, Informational |
 | **Priority** | `priority` | `Critical` | Other options: Blocker, Major, Normal, Minor |
@@ -38,12 +39,23 @@ Also set when applicable:
 | Parent | `parent` | Sub-task parent story key |
 | Affects version | `versions` | Prior GA stream if z-stream QE |
 
-### Component IDs (common)
+### Component (required)
 
-| Component | ID |
-|-----------|-----|
-| Global Hub | `33693` |
-| QE | `33698` |
+Always set **Global Hub** — ID `33693`:
+
+```json
+"components": [{"id": "33693"}]
+```
+
+### Assignee (required)
+
+Set the initial owner to the authenticated user — use `JIRA_EMAIL` from `.env`:
+
+```json
+"assignee": {"name": "you@redhat.com"}
+```
+
+In shell scripts, pass `"${JIRA_EMAIL}"` so the issue is assigned to you on create.
 
 ### Activity Type option
 
@@ -74,7 +86,8 @@ curl -s -u "${JIRA_EMAIL}:${JIRA_API_TOKEN}" -X POST "${JIRA_URL}/rest/api/3/iss
       "summary": "QE: example sub-task",
       "issuetype": {"name": "Sub-task"},
       "parent": {"key": "ACM-30971"},
-      "components": [{"id": "33698"}],
+      "components": [{"id": "33693"}],
+      "assignee": {"name": "'"${JIRA_EMAIL}"'"},
       "fixVersions": [{"id": "106812"}],
       "priority": {"name": "Critical"},
       "customfield_10464": {"value": "Product / Portfolio Work"},
@@ -104,10 +117,11 @@ curl -s -u "${JIRA_EMAIL}:${JIRA_API_TOKEN}" -X POST "${JIRA_URL}/rest/api/3/iss
 
 After every create or metadata update:
 
-1. Confirm **Component** is set (UI or `GET /rest/api/3/issue/<KEY>?fields=components`).
-2. Confirm **Activity Type**, **Severity**, **Priority** are set.
-3. Link related issues (`Related`, `Duplicate`, etc.) — link type name is `Related`, not `Relates`.
-4. Sub-tasks: verify `parent` is the intended story (not epic-only Task).
+1. Confirm **Component** is `Global Hub` (UI or `GET /rest/api/3/issue/<KEY>?fields=components`).
+2. Confirm **Assignee** is you (`fields=assignee`).
+3. Confirm **Activity Type**, **Severity**, **Priority** are set.
+4. Link related issues (`Related`, `Duplicate`, etc.) — link type name is `Related`, not `Relates`.
+5. Sub-tasks: verify `parent` is the intended story (not epic-only Task).
 
 ## Issue link types (ACM)
 

@@ -142,8 +142,6 @@ Use `gh pr comment <PR_NUMBER> --repo <owner/repo> --body "..."` immediately aft
 
 - <bullet describing the change>
 - <bullet describing why / what it fixes>
-
-CI should now pass / next step: <what to expect next>.
 ```
 
 ### Example (#2490 — format lint fix)
@@ -152,15 +150,17 @@ CI should now pass / next step: <what to expect next>.
 gh pr comment 2490 --repo stolostron/multicluster-global-hub --body "**Update: fix errcheck in version_clusterclaim test**
 
 - Restored checked \`fmt.Fprintf\` calls in \`version_clusterclaim_test.go\` (cherry-pick from #2488 had dropped error handling)
-- Fixes failing \`format\` job (golangci-lint errcheck)
-
-CI should re-run on \`1eb5a705\`."
+- Fixes failing \`format\` job (golangci-lint errcheck)"
 ```
 
 ### Rules
 
 - Always include the PR number and repo in the `gh pr comment` call.
-- Keep the body concise (3–6 lines).
+- Keep the body concise (3–5 lines).
+- **Describe only what changed and why.** Do **not** add:
+  - Local verification claims (`Verified locally…`, `opm serve --cache-only` passes, test matrix you ran)
+  - CI predictions or timing (`CI should pass`, `CI should re-run`, `build should succeed in 10 min`)
+  - Next-step speculation (`re-run on <sha>`, `grab the EC log if…`, `test with …`)
 - Post the comment **after** the push succeeds, **before** reporting back to the user or starting the next task.
 - Applies to all push types: CI fixes, rebase, new commits, force-push after DCO amend.
 
@@ -212,6 +212,12 @@ Slack messages to teams (CI, infra, security, QE, etc.) are hard to retract and 
 ### Retrospective example (Jun 2026)
 
 A `403 Forbidden` and `jq null` in a SonarCloud post-submit log led to a Slack escalation asking the CI team to rotate `acm-sonarcloud-token`. The token was fine — the real issue was three S8545 vulnerability findings driving a Security Rating C that failed the quality gate. Querying `sonarcloud.io/api/qualitygates/project_status` upfront would have revealed the actual cause in seconds and avoided the incorrect escalation.
+
+## GH release repo script fixes — always push to GitLab
+
+**Whenever you update a script on the gh release project, always push the fix to https://gitlab.cee.redhat.com/vbirsan/acm-global-hub-release**
+
+Local edits alone are not enough. Commit (DCO) and `git push pipeline <branch>` before reporting the fix. Full scope and workflow: **`skills/gitlab-gh-release-pipeline/SKILL.md`**.
 
 ## GitLab pipeline fixes — merge before "rerun"
 

@@ -20,8 +20,6 @@ Use `gh pr comment <PR_NUMBER> --repo <owner/repo> --body "..."` immediately aft
 
 - <bullet describing the change>
 - <bullet describing why / what it fixes>
-
-CI should now pass / next step: <what to expect next>.
 ```
 
 ## Examples
@@ -32,9 +30,7 @@ After pushing a formatting fix to PR #2452:
 gh pr comment 2452 --repo stolostron/multicluster-global-hub --body "**Update: apply strict-fmt (gci + gofumpt)**
 
 - Ran \`make strict-fmt\` on release-2.17 — 50 files needed reformatting (migration code, handlers, tests)
-- Fixes the \`format\` job exit code 2 from \`git diff --exit-code\` after gofumpt
-
-CI should now pass."
+- Fixes the \`format\` job exit code 2 from \`git diff --exit-code\` after gofumpt"
 ```
 
 After pushing a lint fix to PR #2490:
@@ -43,14 +39,16 @@ After pushing a lint fix to PR #2490:
 gh pr comment 2490 --repo stolostron/multicluster-global-hub --body "**Update: fix errcheck in version_clusterclaim test**
 
 - Restored checked \`fmt.Fprintf\` calls in \`version_clusterclaim_test.go\`
-- Fixes failing \`format\` job (golangci-lint errcheck)
-
-CI should re-run on \`1eb5a705\`."
+- Fixes failing \`format\` job (golangci-lint errcheck)"
 ```
 
 ## Rules
 
 - Always include the PR number and repo in the `gh pr comment` call.
-- Keep the body concise (3–6 lines).
+- Keep the body concise (3–5 lines).
+- **Describe only what changed and why.** Do **not** add:
+  - Local verification claims (`Verified locally…`, `opm serve --cache-only` passes, etc.)
+  - CI predictions or timing (`CI should pass`, `CI should re-run on latest commit`)
+  - Next-step speculation (`re-run on <sha>`, `grab the EC log if…`, `test with …`)
 - Post the comment **after** the push succeeds, **before** reporting back to the user or moving on.
 - Applies to CI fixes, rebases, DCO amends, and any other push to a PR branch.

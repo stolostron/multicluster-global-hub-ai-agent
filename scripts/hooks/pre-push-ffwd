@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Git pre-push hook: ffwd railcheck (chain-safe).
+#
+# Install from ai-agent repo root:
+#   ./scripts/install-ffwd-hook.sh
+#
+# Or from a component repo clone:
+#   FFWD_POLICY_FILE=/path/to/multicluster-global-hub-ai-agent/workflows/cve-service/config/repo_mapping.json \
+#     /path/to/multicluster-global-hub-ai-agent/scripts/install-ffwd-hook.sh
+
+set -euo pipefail
+
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CHECK_SCRIPT="$(cd "${HOOK_DIR}/.." && pwd)/check-ffwd-push.sh"
+
+if [[ ! -x "$CHECK_SCRIPT" ]]; then
+  echo "check-ffwd-push.sh not found at ${CHECK_SCRIPT}" >&2
+  exit 1
+fi
+
+if ! "$CHECK_SCRIPT" --hook; then
+  exit 1
+fi
+
+# Run previously installed pre-push hook (e.g. release checklist) if chained
+if [[ -x "${HOOK_DIR}/pre-push.next" ]]; then
+  exec "${HOOK_DIR}/pre-push.next" "$@"
+fi
+
+exit 0
