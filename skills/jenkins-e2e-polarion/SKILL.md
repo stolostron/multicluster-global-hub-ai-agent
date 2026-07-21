@@ -151,16 +151,21 @@ Use `CI-Jobs/push_results_to_polarion` — **not** the standalone `upload-report
 
 The job reads the junit XML directly from the upstream job's archived artifacts.
 
+When triggered via **`globalhub_e2e_test_pipeline`**, leave `COMPONENT_POLARION_TEST_RUN_ID` empty — the pipeline auto-derives `${POLARION_TEST_PLAN_ID}_e2e_<globalhub-e2e-build>` from `results/hoh/result-*.xml` before calling `push_results_to_polarion`. Override only when you need a custom run name.
+
+For **manual** re-push after a completed pipeline run, use the pipeline as upstream (not `globalhub-e2e` directly):
+
 ```bash
 E2E_BUILD=1717           # globalhub-e2e build number with the results
+PIPELINE_BUILD=346       # globalhub_e2e_test_pipeline build that archived results/hoh/
 GH_VER_UNDERSCORED=1_8_0 # e.g. 1_8_0 for GH 1.8.0 (underscores, no dots)
 OCP_COMPACT=421          # e.g. 421 for OCP 4.21
 
 /opt/homebrew/bin/bash "${REPO_ROOT}/lib/trigger-jenkins-build.sh" \
   -j "job/CI-Jobs/job/push_results_to_polarion" \
   "COMPONENT=HOH" \
-  "UPSTREAM_JOB=globalhub-e2e" \
-  "UPSTREAM_JOB_BUILD_NUMBER=${E2E_BUILD}" \
+  "UPSTREAM_JOB=CI-Jobs/globalhub_e2e_test_pipeline" \
+  "UPSTREAM_JOB_BUILD_NUMBER=${PIPELINE_BUILD}" \
   "CLOUD_PROVIDER=regionalhub-ACMlatest-${OCP_COMPACT}-globalhub" \
   "OCP_VERSION=4.21" \
   "ACM_IMAGE=latest-2.17" \

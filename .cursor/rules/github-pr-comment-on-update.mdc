@@ -50,5 +50,7 @@ gh pr comment 2490 --repo stolostron/multicluster-global-hub --body "**Update: f
   - Local verification claims (`Verified locally…`, `opm serve --cache-only` passes, etc.)
   - CI predictions or timing (`CI should pass`, `CI should re-run on latest commit`)
   - Next-step speculation (`re-run on <sha>`, `grab the EC log if…`, `test with …`)
+  - Obvious process/meta notes reviewers already know (`force-push will require fresh /lgtm`, `branch protection dismisses stale reviews`, `CI will re-run on the new commit`, commit SHAs as filler) — tell the user in chat if needed, not on the PR
+  - Hostnames, cluster names, routes, IPs, usernames, passwords, tokens, or other sensitive data (see `skills/agent-config/SKILL.md`)
 - Post the comment **after** the push succeeds, **before** reporting back to the user or moving on.
 - Applies to CI fixes, rebases, DCO amends, and any other push to a PR branch.
